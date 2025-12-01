@@ -1,9 +1,11 @@
+// api/convert.js
+
 export const runtime = "nodejs";
 
-// Tripo AI 2D → 3D API (async polling 방식)
+// Meshy API 호출을 위한 fetch (Node18 기본 fetch 사용)
 export default async function handler(req, res) {
 
-  // CORS 허용
+  // --- CORS 허용 (아임웹에서 호출 가능) ---
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -17,76 +19,84 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1) Body 읽기
-    const chunks = [];
-    for await (const chunk of req) chunks.push(chunk);
-    const bodyString = Buffer.concat(chunks).toString();
+    // Body 읽기
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    const data = JSON.parse(body || "{}");
 
-    const data = JSON.parse(bodyString || "{}");
     const imageUrl = data.imageUrl;
-
     console.log("받은 이미지 URL:", imageUrl);
 
     if (!imageUrl) {
-      return res.status(400).json({ error: "No imageUrl provided" });
+      return res.status(400).json({ error: "imageUrl missing" });
     }
 
-    const API_KEY = process.env.TRIPO_API_KEY;
+    // Meshy API Key
+    const API_KEY = process.env.MESHY_API_KEY;
     if (!API_KEY) {
-      return res.status(500).json({ error: "TRIPO API Key missing" });
+      return res.status(500).json({ error: "Meshy API Key missing" });
     }
 
-    // 2) Tripo AI: 이미지 → 3D 생성 요청
-    const createRes = await fetch("https://api.tripo.ai/v1/image-to-3d", {
+    // 1) Meshy 3D 생성 API 호출
+    const meshyResponse = await fetch("https://api.meshy.ai/v1/image-to-3d", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "x-api-key": API_KEY
+        "Authorization": `Bearer ${API_KEY}`,
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         image_url: imageUrl,
-        format: "glb"
+        output_format: "glb",
+        texture: true
       })
     });
 
-    const createData = await createRes.json();
-    console.log("Tripo 생성 요청 응답:", createData);
+    const meshyData = await meshyResponse.json();
+    console.log("Meshy 응답:", meshyData);
 
-    const taskId = createData.task_id;
+    // 작업 ID(task_id)
+    const taskId = meshyData.task_id;
+
     if (!taskId) {
-      return res.status(500).json({ error: "Failed to create task", createData });
+      return res.status(500).json({ error: "Meshy task_id missing", meshyData });
     }
 
-    // 3) Polling: 결과 나올 때까지 조회
-    let glbUrl = null;
+    // Meshy 처리 완료까지 폴링
+    let resultUrl = null;
 
-    for (let i = 0; i < 20; i++) { // 최대 20번(약 60초)
-      await new Promise(r => setTimeout(r, 3000)); // 3초 대기
+    for (let i = 0; i < 20; i++) {   // 최대 60초(20 × 3초)
+      const check = await fetch(
+        `https://api.meshy.ai/v1/image-to-3d/${taskId}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${API_KEY}`
+          }
+        }
+      );
 
-      const statusRes = await fetch(`https://api.tripo.ai/v1/tasks/${taskId}`, {
-        headers: { "x-api-key": API_KEY }
-      });
+      const status = await check.json();
+      console.log("현재 변환 상태:", status.status);
 
-      const statusData = await statusRes.json();
-      console.log("Tripo 상태:", statusData);
-
-      if (statusData.status === "success") {
-        glbUrl = statusData.output?.model_url;
+      if (status.status === "SUCCEEDED") {
+        resultUrl = status.result.glb;
         break;
       }
+
+      await new Promise(r => setTimeout(r, 3000));  // 3초 대기
     }
 
-    if (!glbUrl) {
+    if (!resultUrl) {
       return res.status(500).json({ error: "3D 변환 실패" });
     }
 
+    // 최종 GLB URL 반환
     return res.status(200).json({
       ok: true,
-      glbUrl
+      glbUrl: resultUrl
     });
 
-  } catch (err) {
-    console.error("서버 오류:", err);
-    return res.status(500).json({ error: "서버 내부 오류", detail: err.message });
+  } catch (error) {
+    console.error("서버 오류:", error);
+    return res.status(500).json({ error: "서버 내부 오류", detail: error.message });
   }
 }
