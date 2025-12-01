@@ -1,7 +1,8 @@
 export const runtime = "nodejs";
 
-// Meshy API 호출
+// Tripo AI 2D → 3D API (async polling 방식)
 export default async function handler(req, res) {
+
   // CORS 허용
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -16,7 +17,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1) Body 수신
+    // 1) Body 읽기
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
     const bodyString = Buffer.concat(chunks).toString();
@@ -30,63 +31,58 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "No imageUrl provided" });
     }
 
-    // 2) API 키
-    const API_KEY = process.env.MESHY_API_KEY;
+    const API_KEY = process.env.TRIPO_API_KEY;
     if (!API_KEY) {
-      return res.status(500).json({ error: "Meshy API Key missing" });
+      return res.status(500).json({ error: "TRIPO API Key missing" });
     }
 
-    // 3) Meshy 3D 요청
-    const meshyResponse = await fetch("https://api.meshy.ai/v1/image-to-3d", {
+    // 2) Tripo AI: 이미지 → 3D 생성 요청
+    const createRes = await fetch("https://api.tripo.ai/v1/image-to-3d", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${API_KEY}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "x-api-key": API_KEY
       },
       body: JSON.stringify({
         image_url: imageUrl,
-        output_format: "glb",
-        texture: true
+        format: "glb"
       })
     });
 
-    const meshyData = await meshyResponse.json();
-    console.log("Meshy 응답:", meshyData);
+    const createData = await createRes.json();
+    console.log("Tripo 생성 요청 응답:", createData);
 
-    if (!meshyData.task_id) {
-      return res.status(500).json({ error: "Meshy task_id missing", meshyData });
+    const taskId = createData.task_id;
+    if (!taskId) {
+      return res.status(500).json({ error: "Failed to create task", createData });
     }
 
-    const taskId = meshyData.task_id;
+    // 3) Polling: 결과 나올 때까지 조회
+    let glbUrl = null;
 
-    // 4) Polling
-    let resultUrl = null;
+    for (let i = 0; i < 20; i++) { // 최대 20번(약 60초)
+      await new Promise(r => setTimeout(r, 3000)); // 3초 대기
 
-    for (let i = 0; i < 20; i++) {
-      const checkRes = await fetch(`https://api.meshy.ai/v1/image-to-3d/${taskId}`, {
-        headers: {
-          "Authorization": `Bearer ${API_KEY}`,
-        }
+      const statusRes = await fetch(`https://api.tripo.ai/v1/tasks/${taskId}`, {
+        headers: { "x-api-key": API_KEY }
       });
 
-      const status = await checkRes.json();
-      console.log("변환 상태:", status.status);
+      const statusData = await statusRes.json();
+      console.log("Tripo 상태:", statusData);
 
-      if (status.status === "SUCCEEDED") {
-        resultUrl = status.result.glb;
+      if (statusData.status === "success") {
+        glbUrl = statusData.output?.model_url;
         break;
       }
-
-      await new Promise(r => setTimeout(r, 3000));
     }
 
-    if (!resultUrl) {
+    if (!glbUrl) {
       return res.status(500).json({ error: "3D 변환 실패" });
     }
 
     return res.status(200).json({
       ok: true,
-      glbUrl: resultUrl
+      glbUrl
     });
 
   } catch (err) {
