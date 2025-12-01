@@ -1,8 +1,7 @@
 // api/convert.js
 
-export const config = {
-  runtime: "nodejs"
-};
+export const runtime = "nodejs";
+
 
 // Meshy API 호출을 위한 fetch
 import fetch from "node-fetch";
