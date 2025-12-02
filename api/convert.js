@@ -29,7 +29,22 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         image_url: imageUrl,
         output_format: "glb",
-        texture: true
+        quality: "high",
+        texture: true,
+      
+        object_prompt:
+          "High-quality clothing model with accurate silhouette, clean geometry, correct proportions, and realistic garment thickness. Preserve original design, seams, neckline, hem, and fabric drape.",
+      
+        style_prompt:
+          "Professional 3D apparel rendering style, realistic fabric drape, natural wrinkles, clean topology, smooth shading, premium fashion product style, soft studio lighting.",
+      
+        texture_prompt:
+          "High-resolution textile texture, correct fiber pattern, realistic fabric surface, natural shading, 4K detailed texture.",
+      
+        negative_prompt:
+          "distorted mesh, incorrect body shape, broken fabric, melted geometry, unnatural wrinkles, blurry texture, artifacts, low resolution.",
+      
+        art_style: "realistic"
       })
     });
 
