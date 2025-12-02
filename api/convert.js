@@ -57,7 +57,9 @@ export default async function handler(req, res) {
       console.log("현재 변환 상태:", status.status);
 
       if (status.status === "SUCCEEDED") {
-        resultUrl = status.result.glb;
+        if (status.model_urls && status.model_urls.glb) {
+        resultUrl = status.model_urls.glb;
+        }
         break;
       }
 
