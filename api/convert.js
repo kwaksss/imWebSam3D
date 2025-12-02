@@ -55,7 +55,7 @@ export default async function handler(req, res) {
     console.log("Meshy 응답:", meshyData);
 
     // 작업 ID(task_id)
-    const taskId = meshyData.task_id;
+    const taskId = meshyData.task_id|| meshyData.result;
 
     if (!taskId) {
       return res.status(500).json({ error: "Meshy task_id missing", meshyData });
