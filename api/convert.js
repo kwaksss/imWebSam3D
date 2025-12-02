@@ -53,6 +53,7 @@ export default async function handler(req, res) {
       );
 
       const status = await check.json();
+      console.log("전체 상태 응답:", JSON.stringify(status, null, 2));
       console.log("현재 변환 상태:", status.status);
 
       if (status.status === "SUCCEEDED") {
