@@ -29,12 +29,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         image_url: imageUrl,
         output_format: "glb",
-        quality: "medium",
-        texture: true,
-        object_prompt: "Generate a full 3D garment with real thickness and side depth.",
-        style_prompt: "natural realistic clothing style",
-        texture_prompt: "Preserve original fabric color and texture from the input image.",
-        negative_prompt: "flat shape, color changes, recolor, distorted fabric"
+        texture: true
       })
     });
 
