@@ -72,8 +72,9 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       ok: true,
-      glbUrl: resultUrl
+      glbUrl: `/api/proxy-glb?url=${encodeURIComponent(resultUrl)}`
     });
+
 
   } catch (error) {
     console.error("서버 오류:", error);
