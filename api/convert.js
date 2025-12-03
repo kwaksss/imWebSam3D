@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import crypto from "crypto";
+import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 
 const s3 = new S3Client({
   region: "ap-northeast-2",
@@ -34,7 +35,26 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Meshy API Key missing" });
     }
 
-    // -------- 1) Meshy 변환 요청 --------
+    // -------- 0) 이미지 해시 기반 파일명 생성 --------
+    const hash = crypto.createHash("sha256").update(imageUrl).digest("hex");
+    const bucketName = process.env.AWS_BUCKET_NAME;
+    const fileName = `models/${hash}.glb`;
+    const fileUrl = `https://${bucketName}.s3.ap-northeast-2.amazonaws.com/${fileName}`;
+
+    // -------- 1) 이미 S3에 파일이 있는지 체크 --------
+    try {
+      await s3.send(new HeadObjectCommand({ Bucket: bucketName, Key: fileName }));
+      console.log("S3에서 기존 GLB 발견 → 재생성 필요 없음");
+
+      return res.status(200).json({
+        ok: true,
+        glbUrl: fileUrl
+      });
+    } catch (err) {
+      console.log("기존 GLB 없음 → Meshy 변환 시작");
+    }
+
+    // -------- 2) Meshy 변환 요청 --------
     const createRes = await fetch("https://api.meshy.ai/v1/image-to-3d", {
       method: "POST",
       headers: {
@@ -56,7 +76,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Meshy task_id missing", createData });
     }
 
-    // -------- 2) 변환 상태 체크 (폴링) --------
+    // -------- 3) Meshy 변환 상태 폴링 --------
     let resultUrl = null;
 
     for (let i = 0; i < 60; i++) {
@@ -77,31 +97,27 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "3D 변환 실패" });
     }
 
-    // -------- 3) Meshy에서 GLB 다운로드 --------
+    // -------- 4) GLB 다운로드 --------
     const fileResponse = await fetch(resultUrl);
     const arrayBuffer = await fileResponse.arrayBuffer();
     const fileBuffer = Buffer.from(arrayBuffer);
 
-    // -------- 4) S3 업로드 --------
-    const bucketName = process.env.AWS_BUCKET_NAME;
-    const fileName = `models/${Date.now()}.glb`;
-
+    // -------- 5) S3 업로드 --------
     await s3.send(
       new PutObjectCommand({
         Bucket: bucketName,
         Key: fileName,
         Body: fileBuffer,
-        ContentType: "model/gltf-binary",
+        ContentType: "model/gltf-binary"
       })
     );
 
-    // 최종 S3 URL
-    const finalUrl = `https://${bucketName}.s3.ap-northeast-2.amazonaws.com/${fileName}`;
+    console.log("S3 업로드 완료:", fileUrl);
 
-    // -------- 5) 최종 반환 --------
+    // -------- 6) 최종 반환 --------
     return res.status(200).json({
       ok: true,
-      glbUrl: finalUrl
+      glbUrl: fileUrl
     });
 
   } catch (error) {
