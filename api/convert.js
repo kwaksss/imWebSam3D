@@ -1,8 +1,14 @@
 export const runtime = "nodejs";
 
-// ---- 간단한 메모리 캐시 ----
-const cache = {};  
-// 구조 예: { "https://image-url.jpg": "/api/proxy-glb?url=...." }
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+
+const s3 = new S3Client({
+  region: "ap-northeast-2",
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  }
+});
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -13,31 +19,23 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
 
   try {
+    // -------- Body 읽기 --------
     let body = "";
     for await (const chunk of req) body += chunk;
     const data = JSON.parse(body || "{}");
 
     const imageUrl = data.imageUrl;
-    if (!imageUrl) return res.status(400).json({ error: "imageUrl missing" });
-
-    const API_KEY = process.env.MESHY_API_KEY;
-    if (!API_KEY) return res.status(500).json({ error: "Meshy API Key missing" });
-
-    // ------------------------------------
-    // 0) 캐시 확인 (이미 생성한 GLB가 있다면 즉시 반환)
-    // ------------------------------------
-    if (cache[imageUrl]) {
-      console.log("캐시된 GLB 반환:", cache[imageUrl]);
-      return res.status(200).json({
-        ok: true,
-        glbUrl: cache[imageUrl]
-      });
+    if (!imageUrl) {
+      return res.status(400).json({ error: "imageUrl missing" });
     }
 
-    // ------------------------------------
-    // 1) Meshy 생성 요청
-    // ------------------------------------
-    const meshyResponse = await fetch("https://api.meshy.ai/v1/image-to-3d", {
+    const API_KEY = process.env.MESHY_API_KEY;
+    if (!API_KEY) {
+      return res.status(500).json({ error: "Meshy API Key missing" });
+    }
+
+    // -------- 1) Meshy 변환 요청 --------
+    const createRes = await fetch("https://api.meshy.ai/v1/image-to-3d", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${API_KEY}`,
@@ -50,53 +48,58 @@ export default async function handler(req, res) {
       })
     });
 
-    const meshyData = await meshyResponse.json();
-    console.log("Meshy 응답:", meshyData);
+    const createData = await createRes.json();
+    console.log("Meshy 생성 요청 응답:", createData);
 
-    const taskId = meshyData.task_id || meshyData.result;
+    const taskId = createData.task_id || createData.result;
     if (!taskId) {
-      return res.status(500).json({ error: "Meshy task_id missing", meshyData });
+      return res.status(500).json({ error: "Meshy task_id missing", createData });
     }
 
-    // ------------------------------------
-    // 2) 변환 상태 폴링(완료될 때까지 대기)
-    // ------------------------------------
+    // -------- 2) 변환 상태 체크 (폴링) --------
     let resultUrl = null;
 
-    for (let i = 0; i < 60; i++) { // 최대 3분
-      const check = await fetch(`https://api.meshy.ai/v1/image-to-3d/${taskId}`, {
+    for (let i = 0; i < 60; i++) {
+      const statusRes = await fetch(`https://api.meshy.ai/v1/image-to-3d/${taskId}`, {
         headers: { "Authorization": `Bearer ${API_KEY}` }
       });
-
-      const status = await check.json();
-      console.log("현재 변환 상태:", status.status);
+      const status = await statusRes.json();
+      console.log("현재 상태:", status.status);
 
       if (status.status === "SUCCEEDED") {
-        if (status.model_urls && status.model_urls.glb) {
-          resultUrl = status.model_urls.glb;
-        }
+        resultUrl = status.model_urls?.glb;
         break;
       }
-
-      await new Promise(r => setTimeout(r, 3000)); // 3초 대기
+      await new Promise(r => setTimeout(r, 3000));
     }
 
     if (!resultUrl) {
       return res.status(500).json({ error: "3D 변환 실패" });
     }
 
-    // Vercel 프록시 GLB 주소
-    const finalUrl = `/api/proxy-glb?url=${encodeURIComponent(resultUrl)}`;
+    // -------- 3) Meshy에서 GLB 다운로드 --------
+    const fileResponse = await fetch(resultUrl);
+    const arrayBuffer = await fileResponse.arrayBuffer();
+    const fileBuffer = Buffer.from(arrayBuffer);
 
-    // ------------------------------------
-    // 3) 캐시에 저장
-    // ------------------------------------
-    cache[imageUrl] = finalUrl;
-    console.log("캐시에 저장됨!");
+    // -------- 4) S3 업로드 --------
+    const bucketName = process.env.AWS_BUCKET_NAME;
+    const fileName = `models/${Date.now()}.glb`;
 
-    // ------------------------------------
-    // 4) 최종 반환
-    // ------------------------------------
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: fileName,
+        Body: fileBuffer,
+        ContentType: "model/gltf-binary",
+        ACL: "public-read"
+      })
+    );
+
+    // 최종 S3 URL
+    const finalUrl = `https://${bucketName}.s3.ap-northeast-2.amazonaws.com/${fileName}`;
+
+    // -------- 5) 최종 반환 --------
     return res.status(200).json({
       ok: true,
       glbUrl: finalUrl
@@ -104,6 +107,9 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error("서버 오류:", error);
-    return res.status(500).json({ error: "서버 내부 오류", detail: error.message });
+    return res.status(500).json({
+      error: "서버 내부 오류",
+      detail: error.message
+    });
   }
 }
