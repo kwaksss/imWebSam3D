@@ -92,7 +92,6 @@ export default async function handler(req, res) {
         Key: fileName,
         Body: fileBuffer,
         ContentType: "model/gltf-binary",
-        ACL: "public-read"
       })
     );
 
