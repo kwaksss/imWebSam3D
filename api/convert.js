@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     // 0) 캐시 확인 (이미 생성한 GLB가 있다면 즉시 반환)
     // ------------------------------------
     if (cache[imageUrl]) {
-      console.log("📦 캐시된 GLB 반환:", cache[imageUrl]);
+      console.log("캐시된 GLB 반환:", cache[imageUrl]);
       return res.status(200).json({
         ok: true,
         glbUrl: cache[imageUrl]
@@ -92,7 +92,7 @@ export default async function handler(req, res) {
     // 3) 캐시에 저장
     // ------------------------------------
     cache[imageUrl] = finalUrl;
-    console.log("💾 캐시에 저장됨!");
+    console.log("캐시에 저장됨!");
 
     // ------------------------------------
     // 4) 최종 반환
