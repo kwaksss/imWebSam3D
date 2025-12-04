@@ -72,7 +72,7 @@ AWS S3에 영구 캐싱하여 model-viewer로 렌더링하는 자동 파이프�
 const hash = crypto.createHash("sha256").update(imageUrl).digest("hex");
 const glbKey = `${hash}.glb`;
 ```
-이미지 URL을 그대로 쓰면 파일명으로 사용할 수 없는 문자 '/','?'등이 포함될 수 있다.
+이미지 URL을 그대로 쓰면 파일명으로 사용할 수 없는 문자 '/','?'등이 포함될 수 있다."\n"
 동일한 상품의 URL은 항상 동일해서 동일한 해시값을 얻을 수 있다.
 
 ### 2) S3에서 기존 GLB 존재 확인
