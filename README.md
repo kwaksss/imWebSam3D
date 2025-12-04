@@ -58,7 +58,25 @@ AWS S3에 영구 캐싱하여 model-viewer로 렌더링하는 자동 파이프�
 - Meshy AI (image-to-3d)
 
 ### Frontend
-- Imweb HTML widget  
+- Imweb HTML + JS widget  
 - `<model-viewer>` for rendering
+
+---
+## 🔧 핵심 코드 설명
+
+### 1) 이미지 URL → SHA-256 해시 생성 (파일명 고정)
+
+```js
+const hash = crypto.createHash("sha256").update(imageUrl).digest("hex");
+const glbKey = `${hash}.glb`;
+2) S3에서 기존 GLB 존재 확인
+js
+코드 복사
+try {
+  await s3.send(new HeadObjectCommand({ Bucket, Key: glbKey }));
+  return S3 url; // Meshy 호출 없이 즉시 끝
+} catch (e) {
+  // 존재하지 않으면 Meshy로 생성
+}
 
 
