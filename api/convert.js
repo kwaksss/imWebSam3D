@@ -90,7 +90,7 @@ export default async function handler(req, res) {
         resultUrl = status.model_urls?.glb;
         break;
       }
-      await new Promise(r => setTimeout(r, 3000));
+      await new Promise(r => setTimeout(r, 4500));
     }
 
     if (!resultUrl) {
