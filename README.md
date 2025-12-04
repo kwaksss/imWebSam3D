@@ -8,6 +8,10 @@ AWS S3에 영구 캐싱하여 model-viewer로 렌더링하는 자동 파이프�
 <p align="center">
   <img src="https://github.com/user-attachments/assets/56e70453-de2b-4ee0-930e-13281e73d855" width="100%">
 </p>
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/87c24842-df45-4f5b-ab05-bcabf2884891" width="100%">
+</p>
+
 >실제 쇼핑몰 페이지
 (https://www.papiierofficial.com/25/?idx=12)
 
@@ -46,9 +50,7 @@ AWS S3에 영구 캐싱하여 model-viewer로 렌더링하는 자동 파이프�
 <p align="center">
   <img src="https://github.com/user-attachments/assets/5242bddf-59ba-4dbe-bc67-631d239eb9d1" width="100%">
 </p>
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/19b11650-3b0f-47c4-acb0-dcdab8d49df" width="100%">
-</p>
+
 
 
 ---
