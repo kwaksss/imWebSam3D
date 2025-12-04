@@ -87,8 +87,9 @@ try {
 } catch (e) {
   // 존재하지 않으면 Meshy로 생성
 }
-AWS S3 버킷에 해당 GLB 파일이 있는지 CHECK 있으면 바로 return
+
 ```
+AWS S3 버킷에 해당 GLB 파일이 있는지 CHECK 있으면 바로 return
 
 ### 3) Meshy 변환 요청 → 상태 Polling
 ```js
