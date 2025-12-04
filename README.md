@@ -6,7 +6,7 @@ AWS S3에 영구 캐싱하여 model-viewer로 렌더링하는 자동 파이프�
 
 ## 📸 Demo
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/87c8561c-7c5e-436b-bf64-80f016ad44eb" width="100%">
+  <img src="https://github.com/user-attachments/assets/56e70453-de2b-4ee0-930e-13281e73d855" width="100%">
 </p>
 >실제 쇼핑몰 페이지
 (https://www.papiierofficial.com/25/?idx=12)
