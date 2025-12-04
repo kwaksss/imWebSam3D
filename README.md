@@ -111,3 +111,29 @@ await s3.send(new PutObjectCommand({
 }));
 ```
 
+---
+## 🛠 트러블슈팅 (Troubleshooting)
+### ❌ 1) AccessControlListNotSupported: The bucket does not allow ACLs
+
+원인: S3의 Public Access Block 설정 때문에 ACL 허용 불가
+
+해결: PutObject에서 ACL 제거 → 퍼블릭 버킷 정책으로 해결
+
+### ❌ 2) Meshy 변환 시간 너무 길다 (2~3분)
+
+원인: 매번 Meshy 새로 호출
+
+해결: S3 캐싱 도입 → 동일 이미지 GLB 있으면 Meshy 호출 없이 즉시 반환
+
+### ❌ 3) GitHub raw URL로 GLB 호스팅 시 CORS ERROR
+
+원인: GitHub CDN이 CORS 차단
+
+해결: AWS S3 정적 파일 호스팅으로 변경
+
+### ❌ 4) Vercel In-memory Cache 날아감
+
+원인: 서버리스 함수는 재기동 시 메모리 날아감
+
+해결: 완전 외부 스토리지(S3) 기반 캐시 시스템 구축
+
