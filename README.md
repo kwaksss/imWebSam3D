@@ -79,7 +79,10 @@ const glbKey = `${hash}.glb`;
 
 ```js
 try {
-  await s3.send(new HeadObjectCommand({ Bucket, Key: glbKey }));
+  await s3.send(new HeadObjectCommand({
+   Bucket:AWS_BUCKET_NAME,
+   Key: glbKey
+}));
   return S3 url; // Meshy 호출 없이 즉시 끝
 } catch (e) {
   // 존재하지 않으면 Meshy로 생성
