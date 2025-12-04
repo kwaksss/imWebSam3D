@@ -47,4 +47,18 @@ AWS S3에 영구 캐싱하여 model-viewer로 렌더링하는 자동 파이프�
   <img src="https://github.com/user-attachments/assets/5242bddf-59ba-4dbe-bc67-631d239eb9d1" width="100%">
 </p>
 
+## 🔧 기술 스택
+
+### Backend & Infra
+- Vercel Serverless Functions  
+- AWS S3  
+- AWS IAM  
+
+### AI
+- Meshy AI (image-to-3d)
+
+### Frontend
+- Imweb HTML widget  
+- `<model-viewer>` for rendering
+
 
