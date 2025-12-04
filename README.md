@@ -68,13 +68,13 @@ AWS S3에 영구 캐싱하여 model-viewer로 렌더링하는 자동 파이프�
 
 ### 1) 이미지 URL → SHA-256 해시 생성 (파일명 고정)
 
-
 ```js
 const hash = crypto.createHash("sha256").update(imageUrl).digest("hex");
 const glbKey = `${hash}.glb`;
-\`\`\`**
+```
 
 ### 2) S3에서 기존 GLB 존재 확인
+
 ```js
 try {
   await s3.send(new HeadObjectCommand({ Bucket, Key: glbKey }));
@@ -82,5 +82,25 @@ try {
 } catch (e) {
   // 존재하지 않으면 Meshy로 생성
 }
+```
 
+### 3) Meshy 변환 요청 → 상태 Polling
+```js
+const meshyResponse = await fetch("https://api.meshy.ai/v1/image-to-3d", {...})
+
+for (...) {
+   const status = await fetch(...)
+   if (status.status === "SUCCEEDED") break;
+}
+```
+
+### 4) GLB 다운로드 후 S3 업로드
+```js
+await s3.send(new PutObjectCommand({
+  Bucket,
+  Key: glbKey,
+  Body: glbBuffer,
+  ContentType: "model/gltf-binary"
+}));
+```
 
